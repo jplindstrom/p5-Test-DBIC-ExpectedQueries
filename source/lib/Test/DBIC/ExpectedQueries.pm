@@ -153,6 +153,9 @@ If the test fails, list all queries relating to the failing table.
 If anything failed to be identified as a known query, always list
 those queries. But don't fail the test just because of it.
 
+Reset the collected stats, so subsequent calls to ->run() start with a
+clean slate.
+
 
 
 =head1 ANNOTATED EXAMPLES
@@ -215,7 +218,7 @@ queries until after they have been run.
 
     my $total_author_count = @{$author_rows} + 1; # or whatever
 
-    # This does not reset the collected stats. Create a new object for that.
+    # This resets the collected stats
     $queries->test(
         {
             author     => {
@@ -358,12 +361,18 @@ sub test {
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $failure_message = $self->check_table_operation_counts($expected);
+    my $unknown_warning = $self->unknown_warning;
+
+    $self->clear_queries_sql();
+
+
+    my $test_description = "Expected queries for tables";
     if($failure_message) {
-        fail("Expected queries for tables:\n\n$failure_message" . $self->unknown_warning);
+        fail("$test_description:\n\n$failure_message$unknown_warning");
         return 0;
     }
 
-    pass("Expected queries for tables" . $self->unknown_warning);
+    pass("$test_description$unknown_warning");
     return 1;
 }
 
