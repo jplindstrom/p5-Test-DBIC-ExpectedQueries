@@ -4,6 +4,8 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+1.003 -- 2015-02-20 16:48:11 UTC
+
 * Reset collected stats when calling ->test().
 
 
