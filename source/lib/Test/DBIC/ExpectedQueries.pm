@@ -1,6 +1,6 @@
 =head1 NAME
 
-Test::DBIC::ExpectedQueries - Test that no unexpected DBIx::Class queries are run
+Test::DBIC::ExpectedQueries - Test that only expected DBIx::Class queries are run
 
 
 =head1 DESCRIPTION
@@ -17,12 +17,126 @@ can easily be solved by prefetching those relations, but you have to
 know it happens first.
 
 This module will help you with that, and to ensure you don't
-accidentally start running many single row queries in the future.
+accidentally start running many single-row queries in the future.
+
 
 
 =head1 SYNOPSIS
 
-=head2 Simple case
+=head2 Setup
+
+    use Test::More;
+    use Test::DBIC::ExpectedQueries;
+    my $schema = ...; # Connect to a DBIx::Class schema
+
+=head2 Simple
+
+    expected_queries(
+        $schema,
+        sub {
+            $self->resultset("Book")->find(34);
+            $self->resultset("Author")->create( ... );
+            $self->resultset("Book")->search( undef, { join => "author" } );
+        },
+        {
+            book   => { select => "<= 2"},
+            author => { create => undef },
+        },
+    );
+
+
+=head2 Flexible
+
+    my $queries = Test::DBI::ExpectedQueries->new({ schema => $schema }});
+    $queries->run(sub {
+        $self->resultset("Book")->find(34);
+        $self->resultset("Author")->create( ... );
+    });
+    $queries->run(sub {
+        $self->resultset("Book")->search( undef, { join => "author" } );
+    });
+
+    $queries->test({
+        book   => { select => "<= 2"},
+        author => { create => undef },
+    });
+
+
+
+=head1 USAGE
+
+You might have a good idea of what queries are/should be run. But
+often that's not the case.
+
+Start by wrapping some DBIC app code in a test without any specific
+limits. The default expectation for all tables is 0 queries run, so
+the test will fail, and report all the executed queries it didn't
+expect.
+
+So now you know what's going on. Now you can fix things that shouldn't
+happen and nail down the current behaviour.
+
+Whether you want to nail down the expected queries with exact counts,
+or just put wide-margin comparisons in place is up to you.
+
+
+
+=head1 SUBROUTINES
+
+
+=head2 expected_queries($schema, $sub_ref, $expected_table_operations)
+
+Run $sub_ref and collect stats for queries executed on $schema, then
+test that they match the $expected_table_operations.
+
+See the SYNOPSIS for examples on how the $expected_table_operations is
+used.
+
+=over 4
+
+=item *
+
+A number means exact match. Comparisons in a string means, well that.
+
+=item *
+
+Undef means any number of queries
+
+=back
+
+Return the return value running $sub_ref.
+
+
+
+=head1 METHODS
+
+=head2 new({ schema => $schema }}) : $new_object
+
+Create new test object. $schema is a DBIx::Class::Schema object.
+
+
+=head2 run( $sub_ref ) : $result | @result
+
+Run $sub_ref->() and collect all DBIC queries being run.
+
+Return the result of running $sub_ref.
+
+
+=head2 test($expected_table_operations) : Bool
+
+Test the collected queries against $expected_table_operations (see
+abov) and either pass or fail a Test::More test.
+
+If the test fails, list all queries relating to the failing table.
+
+If anything failed to be identified as a known query, always list
+those queries. But don't fail the test just because of it.
+
+
+
+=head1 ANNOTATED EXAMPLES
+
+=head2 Simple interface
 
     use Test::More;
     use Test::DBIC::ExpectedQueries;
@@ -56,15 +170,15 @@ accidentally start running many single row queries in the future.
     );
 
 
-=head2 Flexible case
+=head2 Flexible interface
 
-The expected queries syntax is the same as above, but using the OO
-interface allows you to collect stats for many separate
-queries.
+The way to epxress which queries are expected is the same as above,
+but using the OO interface allows you to collect stats for many
+separate queries.
 
-Useful for when you care about individual return values from methods
-called, and when you don't know the expected number of queries until
-after they have been run.
+It is also useful for when you care about individual return values
+from methods called, and when you don't know the expected number of
+queries until after they have been run.
 
     use Test::More;
     use Test::DBIC::ExpectedQueries;
@@ -74,11 +188,13 @@ after they have been run.
         sub { $author_tree->create_authors_for_tabs($schema) },
     );
 
+    # Add more stats in a second run
     $queries->run( sub { $author_tree->check_stuff() } );
 
     # ... test other things
 
     my $total_author_count = @{$author_rows} + 1; # or whatever
+    # This does not reset the collected stats. Create a new object for that.
     $queries->test(
         {
             author     => {
