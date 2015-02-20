@@ -4,6 +4,8 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+1.002 -- 2015-02-20 14:34:10 UTC
+
 * Even more better POD docs.
 
 
