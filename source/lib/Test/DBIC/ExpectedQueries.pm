@@ -85,7 +85,7 @@ or just put wide-margin comparisons in place is up to you.
 =head1 SUBROUTINES
 
 
-=head2 expected_queries($schema, $sub_ref, $expected_table_operations) : $result | @result
+=head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {} ) : $result | @result
 
 Run $sub_ref and collect stats for queries executed on $schema, then
 test that they match the $expected_table_operations.
@@ -143,7 +143,7 @@ stats before finally calling $queries->test().
 Return the return value of $sub_ref->().
 
 
-=head2 test($expected_table_operations) : Bool
+=head2 test( $expected_table_operations = {} ) : Bool
 
 Test the collected queries against $expected_table_operations (see
 abov) and either pass or fail a Test::More test.
@@ -251,6 +251,7 @@ use Test::DBIC::ExpectedQueries::Query;
 
 sub expected_queries : export_def {
     my ($schema, $subref, $expected) = @_;
+    $expected ||= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $queries = Test::DBIC::ExpectedQueries->new({ schema => $schema });
@@ -361,6 +362,7 @@ sub run {
 sub test {
     my $self = shift;
     my ($expected) = @_;
+    $expected ||= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $failure_message = $self->check_table_operation_counts($expected);
