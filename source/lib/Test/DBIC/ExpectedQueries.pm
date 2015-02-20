@@ -331,6 +331,9 @@ sub run {
     my $previous_callback = $storage->debugcb();
     $storage->debugcb( sub {
         my ($op, $sql) = @_;
+        ###JPL: don't ignore the $op, use it instead of parsing out
+        ###the operation?
+        chomp($sql);
         push(@queries_sql, $sql);
     } );
 
