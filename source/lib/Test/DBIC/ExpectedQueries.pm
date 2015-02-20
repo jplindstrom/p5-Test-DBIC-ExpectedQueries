@@ -369,6 +369,8 @@ sub test {
     my $unknown_warning = $self->unknown_warning;
 
     $self->clear_queries_sql();
+    $self->clear_queries();
+    $self->clear_table_operation_count();
 
 
     my $test_description = "Expected queries for tables";
