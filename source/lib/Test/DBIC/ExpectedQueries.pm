@@ -40,7 +40,7 @@ accidentally start running many single-row queries in the future.
         },
         {
             book   => { select => "<= 2"},
-            author => { create => undef },
+            author => { insert => undef },
         },
     );
 
@@ -58,7 +58,7 @@ accidentally start running many single-row queries in the future.
 
     $queries->test({
         book   => { select => "<= 2"},
-        author => { create => undef },
+        author => { insert => undef },
     });
 
 
@@ -73,8 +73,9 @@ limits. The default expectation for all tables is 0 queries run, so
 the test will fail, and report all the executed queries it didn't
 expect.
 
-So now you know what's going on. Now you can fix things that shouldn't
-happen and nail down the current behaviour.
+So now you know what's going on. Now you can add prefetches or caching
+for queries that shouldn't happen and specify query limits for the
+currently known behaviour.
 
 Whether you want to nail down the expected queries with exact counts,
 or just put wide-margin comparisons in place is up to you.
@@ -84,15 +85,32 @@ or just put wide-margin comparisons in place is up to you.
 =head1 SUBROUTINES
 
 
-=head2 expected_queries($schema, $sub_ref, $expected_table_operations)
+=head2 expected_queries($schema, $sub_ref, $expected_table_operations) : $result | @result
 
 Run $sub_ref and collect stats for queries executed on $schema, then
 test that they match the $expected_table_operations.
 
-See the SYNOPSIS for examples on how the $expected_table_operations is
-used.
+See the ANNOTATED EXAMPLES below for examples on how the
+$expected_table_operations is used, but here's a simple example:
+
+    {
+        book   => { select => "<= 2", update => 3 },
+        author => { insert => undef },
+    },
+
 
 =over 4
+
+=item *
+
+Table names as found in the raw SQL are used, not DBIC terms like
+resultset and relation names. For relational queries, only the first
+main table is collected.
+
+=item *
+
+SQL terms like "select", "insert", "update", "delete" are used, not
+DBIC terms like "create" and "search".
 
 =item *
 
@@ -104,7 +122,7 @@ Undef means any number of queries
 
 =back
 
-Return the return value running $sub_ref.
+Return the return value of $sub_ref->().
 
 
 
@@ -119,7 +137,10 @@ Create new test object. $schema is a DBIx::Class::Schema object.
 
 Run $sub_ref->() and collect all DBIC queries being run.
 
-Return the result of running $sub_ref.
+You can call $queries->run() multiple times to add to the collected
+stats before finally calling $queries->test().
+
+Return the return value of $sub_ref->().
 
 
 =head2 test($expected_table_operations) : Bool
@@ -172,9 +193,8 @@ those queries. But don't fail the test just because of it.
 
 =head2 Flexible interface
 
-The way to epxress which queries are expected is the same as above,
-but using the OO interface allows you to collect stats for many
-separate queries.
+Using the OO interface allows you to collect stats for many separate
+queries.
 
 It is also useful for when you care about individual return values
 from methods called, and when you don't know the expected number of
@@ -194,6 +214,7 @@ queries until after they have been run.
     # ... test other things
 
     my $total_author_count = @{$author_rows} + 1; # or whatever
+
     # This does not reset the collected stats. Create a new object for that.
     $queries->test(
         {
