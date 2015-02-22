@@ -21,3 +21,8 @@ happens first.
 This module will help you with that, and to ensure you don't
 accidentally start running many single row queries in the future.
 
+
+## Details
+
+See [Test::DBIC::ExpectedQueries](ExpectedQueries/source/lib/Test/DBIC/) on metacpan.org
+
