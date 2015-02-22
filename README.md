@@ -24,5 +24,5 @@ accidentally start running many single row queries in the future.
 
 ## Details
 
-See [Test::DBIC::ExpectedQueries](ExpectedQueries/source/lib/Test/DBIC/) on metacpan.org
+See [Test::DBIC::ExpectedQueries](https://metacpan.org/pod/Test::DBIC::ExpectedQueries) on metacpan.org
 
