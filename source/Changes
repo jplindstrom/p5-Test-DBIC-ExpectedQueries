@@ -4,6 +4,10 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+* More POD improvements
+
+
+
 1.004 -- 2015-02-20 17:30:45 UTC
 
 * Default ->test() to an empty hashref

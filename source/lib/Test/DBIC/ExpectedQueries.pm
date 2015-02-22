@@ -2,7 +2,6 @@
 
 Test::DBIC::ExpectedQueries - Test that only expected DBIx::Class queries are run
 
-
 =head1 DESCRIPTION
 
 Ensure that only the DBIx::Class SQL queries you expect are executed
@@ -11,10 +10,10 @@ while a particular piece of code under test is run.
 
 =head2 Avoiding the n+1 problem
 
-When following a relation off a row object it's easy to overlook the
-fact that it's causing one query for each row in the resultset. This
-can easily be solved by prefetching those relations, but you have to
-know it happens first.
+When following a relation off a DBIC row object it's easy to overlook
+the fact that it might be causing one query for each and every row in
+the resultset. This can easily be solved by prefetching those
+relations, but you have to know it happens first.
 
 This module will help you with that, and to ensure you don't
 accidentally start running many single-row queries in the future.
@@ -34,9 +33,9 @@ accidentally start running many single-row queries in the future.
     expected_queries(
         $schema,
         sub {
-            $self->resultset("Book")->find(34);
-            $self->resultset("Author")->create( ... );
-            $self->resultset("Book")->search( undef, { join => "author" } );
+            $schema->resultset("Book")->find(34);
+            $schema->resultset("Author")->create( ... );
+            $schema->resultset("Book")->search( undef, { join => "author" } )->all;
         },
         {
             book   => { select => "<= 2"},
@@ -49,11 +48,11 @@ accidentally start running many single-row queries in the future.
 
     my $queries = Test::DBI::ExpectedQueries->new({ schema => $schema }});
     $queries->run(sub {
-        $self->resultset("Book")->find(34);
-        $self->resultset("Author")->create( ... );
+        $schema->resultset("Book")->find(34);
+        $schema->resultset("Author")->create( ... );
     });
     $queries->run(sub {
-        $self->resultset("Book")->search( undef, { join => "author" } );
+        $schema->resultset("Book")->search( undef, { join => "author" } )->all;
     });
 
     $queries->test({
@@ -65,15 +64,15 @@ accidentally start running many single-row queries in the future.
 
 =head1 USAGE
 
-You might have a good idea of what queries are/should be run. But
-often that's not the case.
+You might already have a good idea of what queries are/should be
+run. But often that's not the case.
 
-Start by wrapping some DBIC app code in a test without any specific
-limits. The default expectation for all tables is 0 queries run, so
-the test will fail, and report all the executed queries it didn't
-expect.
+Start by wrapping some DBIC application code in a test without any
+specific limits. The default expectation for all tables is 0 queries
+run. So the test will fail, and report all the executed queries it
+didn't expect.
 
-So now you know what's going on. Now you can add prefetches or caching
+Now you know what's going on. Now you can add prefetches or caching
 for queries that shouldn't happen and specify query limits for the
 currently known behaviour.
 
@@ -90,6 +89,8 @@ or just put wide-margin comparisons in place is up to you.
 Run $sub_ref and collect stats for queries executed on $schema, then
 test that they match the $expected_table_operations.
 
+Return the return value of $sub_ref->().
+
 See the ANNOTATED EXAMPLES below for examples on how the
 $expected_table_operations is used, but here's a simple example:
 
@@ -103,14 +104,14 @@ $expected_table_operations is used, but here's a simple example:
 
 =item *
 
-Table names as found in the raw SQL are used, not DBIC terms like
-resultset and relation names. For relational queries, only the first
-main table is collected.
+Use table names as found in the raw SQL, not DBIC terms like resultset
+and relation names. For relational queries, only the first main table
+is collected.
 
 =item *
 
-SQL terms like "select", "insert", "update", "delete" are used, not
-DBIC terms like "create" and "search".
+Use SQL terms like "select", "insert", "update", "delete", not DBIC
+terms like "create" and "search".
 
 =item *
 
@@ -122,33 +123,34 @@ Undef means any number of queries
 
 =back
 
-Return the return value of $sub_ref->().
-
 
 
 =head1 METHODS
 
 =head2 new({ schema => $schema }}) : $new_object
 
-Create new test object. $schema is a DBIx::Class::Schema object.
+Create new test object.
+
+$schema is a DBIx::Class::Schema object.
 
 
 =head2 run( $sub_ref ) : $result | @result
 
 Run $sub_ref->() and collect all DBIC queries being run.
 
+Return the return value of $sub_ref->().
+
 You can call $queries->run() multiple times to add to the collected
 stats before finally calling $queries->test().
 
-Return the return value of $sub_ref->().
 
-
-=head2 test( $expected_table_operations = {} ) : Bool
+=head2 test( $expected_table_operations = {} ) : $is_passing
 
 Test the collected queries against $expected_table_operations (see
-abov) and either pass or fail a Test::More test.
+above) and either pass or fail a Test::More test.
 
-If the test fails, list all queries relating to the failing table.
+If the test fails, list all queries relating to the tables with
+unexpected activity.
 
 If anything failed to be identified as a known query, always list
 those queries. But don't fail the test just because of it.
@@ -492,24 +494,30 @@ sub test_count {
 __END__
 
 
-=head1 AUTHOR
+=head1 DEVELOPMENT
+
+=head2 Author
 
 Johan Lindstrom, C<< <johanl [AT] cpan.org> >>
 
 
+=head2 Source code
 
-=head1 BUGS AND CAVEATS
+L<https://github.com/jplindstrom/p5-Test-DBIC-ExpectedQueries>
 
-=head2 BUG REPORTS
+
+=head2 Bug reports
 
 Please report any bugs or feature requests on GitHub:
+
 L<https://github.com/jplindstrom/p5-Test-DBIC-ExpectedQueries/issues>.
 
 
-=head2 KNOWN BUGS
+=head2 Caveats
 
-
-=head2 CAVEATS
+SQL queries are identified using quick-n-dirty regexes, to that might
+be a bit brittle (and yet database agnostic, so there's that). Please
+report cases with example SQL.
 
 
 =head1 COPYRIGHT & LICENSE
