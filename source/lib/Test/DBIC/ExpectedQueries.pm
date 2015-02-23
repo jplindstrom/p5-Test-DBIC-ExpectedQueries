@@ -423,7 +423,7 @@ sub check_table_operation_counts {
 
     if(scalar keys %$table_test_result) {
         my $message = "";
-        for my $table (sort keys $table_test_result) {
+        for my $table (sort keys %{$table_test_result}) {
             $message .= "* Table: $table\n";
             $message .= join("\n", @{$table_test_result->{$table}});
             $message .= "\nActually executed SQL queries on table '$table':\n";
