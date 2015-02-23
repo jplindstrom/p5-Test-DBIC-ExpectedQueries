@@ -501,6 +501,17 @@ __END__
 Johan Lindstrom, C<< <johanl [AT] cpan.org> >>
 
 
+=head2 Contributors
+
+Many thanks to:
+
+=over 4
+
+=item Syohei YOSHIDA (syohex)
+
+=back
+
+
 =head2 Source code
 
 L<https://github.com/jplindstrom/p5-Test-DBIC-ExpectedQueries>

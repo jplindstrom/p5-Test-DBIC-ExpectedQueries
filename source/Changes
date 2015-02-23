@@ -4,6 +4,11 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+* Fix #1 - Dereference hash for calling 'keys'
+  - patch by  Syohei YOSHIDA (syohex)
+
+
+
 1.005 -- 2015-02-22 17:58:28 UTC
 
 * More POD improvements
