@@ -507,7 +507,9 @@ Many thanks to:
 
 =over 4
 
-=item Syohei YOSHIDA (syohex)
+=item *
+
+Syohei YOSHIDA (syohex)
 
 =back
 
