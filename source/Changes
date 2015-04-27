@@ -4,6 +4,11 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+*
+
+
+1.007 -- 2015-04-27 13:25:09 UTC
+
 * Fixed prereq on Attribute::Exporter
 
 
