@@ -4,12 +4,15 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
-*
+* Replace Attribute::Exporter with Exporter::Tiny, since
+  Attribute::Exporter gone dun weird.
+
 
 
 1.007 -- 2015-04-27 13:25:09 UTC
 
 * Fixed prereq on Attribute::Exporter
+
 
 
 1.006 -- 2015-02-23 09:14:44 UTC
@@ -53,6 +56,3 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 1.000 -- 2015-02-19 20:51:12 UTC
 
 * First release
-
-
-
