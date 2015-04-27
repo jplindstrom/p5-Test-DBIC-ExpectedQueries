@@ -237,7 +237,9 @@ queries until after they have been run.
 package Test::DBIC::ExpectedQueries;
 
 use Moo;
-BEGIN {extends "Attribute::Exporter"};
+use Exporter::Tiny;
+BEGIN {extends "Exporter::Tiny"};
+our @EXPORT = "expected_queries";
 
 
 use Test::More;
@@ -251,7 +253,7 @@ use Test::DBIC::ExpectedQueries::Query;
 
 ### Simple procedural interface
 
-sub expected_queries : export_def {
+sub expected_queries {
     my ($schema, $subref, $expected) = @_;
     $expected ||= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
