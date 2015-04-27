@@ -4,6 +4,9 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+* Fixed prereq on Attribute::Exporter
+
+
 1.006 -- 2015-02-23 09:14:44 UTC
 
 * Fix #1 - Dereference hash for calling 'keys'
