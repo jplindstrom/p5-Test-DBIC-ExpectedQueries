@@ -311,13 +311,30 @@ sub _stack_trace {
     my $self = shift;
 
     my $trace = Devel::StackTrace->new(
-        message      => "SQL executed",
+        message      => "executed",
         ignore_class => [
             # "main",
             "Test::DBIC::ExpectedQueries",
-            "DBIx::Class",
-            "Test::Class", # ?
+            "Class::MOP::Method::Wrapped",
+            "Moose::Meta::Method::Delegation",
+            "Context::Preserve",
+            # "DBIx::Class",
+            # "DBIx::Class::Schema",
+            # "DBIx::Class::Storage::BlockRunner",
+            "DBIx::Class::ResultSet",
+            "DBIx::Class::Row",
+            "DBIx::Class::Storage::DBI",
+            "DBIx::Class::Storage::Statistics",
+            "DBIx::Class::Row",
+            "Test::Builder",
+            "Test::Class",
+            "Test::Class::Moose",
+            "Test::Class::Moose::Runner",
+            "Test::Class::Moose::Report::Method",
+            "Test::Class::Moose::Role::Executor",
+            "Test::Class::Moose::Executor::Sequential",
             "Try::Tiny",
+            "Try::Tiny::Catch",
         ],
     );
 
