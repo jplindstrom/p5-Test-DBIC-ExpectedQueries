@@ -308,7 +308,7 @@ sub _build_table_operation_count {
 
 
 sub _stack_trace {
-    # Not a method
+    my $self = shift;
 
     my $trace = Devel::StackTrace->new(
         message      => "SQL executed",
@@ -329,7 +329,6 @@ sub _stack_trace {
     return $callers;
 }
 
-
 sub run {
     my $self = shift;
     my ($subref) = @_;
@@ -349,8 +348,8 @@ sub run {
         push(
             @queries,
             Test::DBIC::ExpectedQueries::Query->new({
-                sql => $sql,
-                ###JPL: stack trace
+                sql         => $sql,
+                stack_trace => $self->_stack_trace(),
             }),
         );
     } );
@@ -469,7 +468,11 @@ sub sql_queries_for_table {
     my ($table) = @_;
     return join(
         "\n",
-        map  { $_->display_sql }
+        map  {
+            my $out = $_->display_sql;
+            $out .= "\n" . $_->display_stack_trace;
+            $out;
+        }
         grep { lc($_->table // "") eq lc($table // "") }
         @{$self->queries},
     );

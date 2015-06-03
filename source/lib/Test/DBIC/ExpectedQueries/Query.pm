@@ -4,9 +4,10 @@ use Moo;
 
 
 
-has sql       => ( is => "ro", required => 1 );
-has table     => ( is => "rw" );
-has operation => ( is => "rw" );
+has sql         => ( is => "ro", required => 1 );
+has stack_trace => ( is => "ro", required => 1 ); # Just a string
+has table       => ( is => "rw" );
+has operation   => ( is => "rw" );
 
 sub BUILD { shift->analyze_sql() }
 
@@ -42,6 +43,11 @@ sub analyze_sql {
 sub display_sql {
     my $self = shift;
     return "SQL: (" . $self->sql . ")";
+}
+
+sub display_stack_trace {
+    my $self = shift;
+    return "     " . $self->stack_trace;
 }
 
 1;
