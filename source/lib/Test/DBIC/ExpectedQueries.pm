@@ -246,6 +246,7 @@ use Test::More;
 use Try::Tiny;
 use Carp;
 use DBIx::Class;
+use Devel::StackTrace;
 
 use Test::DBIC::ExpectedQueries::Query;
 
@@ -283,28 +284,12 @@ has schema => (
     required => 1,
 );
 
-has queries_sql => (
-    is      => "rw",
-    lazy    => 1,
-    default => sub { [] },
-    trigger => sub { shift->clear_queries },
-    clearer => 1,
-);
-
 has queries => (
     is      => "rw",
-    lazy    => 1,
-    builder => "_build_queries",
+    default => sub { [] },
     trigger => sub { shift->clear_table_operation_count },
     clearer => 1,
 );
-sub _build_queries {
-    my $self = shift;
-    return [
-        map { Test::DBIC::ExpectedQueries::Query->new({ sql => $_ })}
-        @{$self->queries_sql}
-    ];
-}
 
 has table_operation_count => (
     is      => "lazy",
@@ -322,6 +307,28 @@ sub _build_table_operation_count {
 }
 
 
+sub _stack_trace {
+    # Not a method
+
+    my $trace = Devel::StackTrace->new(
+        message      => "SQL executed",
+        ignore_class => [
+            # "main",
+            "Test::DBIC::ExpectedQueries",
+            "DBIx::Class",
+            "Test::Class", # ?
+            "Try::Tiny",
+        ],
+    );
+
+    my $callers = $trace->as_string;
+    chomp($callers);
+    $callers =~ s/\n/ <-- /gsm;
+    $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
+
+    return $callers;
+}
+
 
 sub run {
     my $self = shift;
@@ -332,14 +339,20 @@ sub run {
     my $previous_debug = $storage->debug();
     $storage->debug(1);
 
-    my @queries_sql;
+    my @queries;
     my $previous_callback = $storage->debugcb();
     $storage->debugcb( sub {
         my ($op, $sql) = @_;
         ###JPL: don't ignore the $op, use it instead of parsing out
         ###the operation?
         chomp($sql);
-        push(@queries_sql, $sql);
+        push(
+            @queries,
+            Test::DBIC::ExpectedQueries::Query->new({
+                sql => $sql,
+                ###JPL: stack trace
+            }),
+        );
     } );
 
     my $return_values;
@@ -357,7 +370,7 @@ sub run {
         $storage->debug($previous_debug);
     };
 
-    $self->queries_sql([ @{$self->queries_sql}, @queries_sql ]);
+    $self->queries([ @{$self->queries}, @queries ]);
 
     return @$return_values if wantarray();
     return $return_values->[0];
@@ -372,7 +385,6 @@ sub test {
     my $failure_message = $self->check_table_operation_counts($expected);
     my $unknown_warning = $self->unknown_warning;
 
-    $self->clear_queries_sql();
     $self->clear_queries();
     $self->clear_table_operation_count();
 
