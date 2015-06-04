@@ -288,6 +288,7 @@ has queries => (
     is      => "rw",
     default => sub { [] },
     trigger => sub { shift->clear_table_operation_count },
+    lazy    => 1,
     clearer => 1,
 );
 
