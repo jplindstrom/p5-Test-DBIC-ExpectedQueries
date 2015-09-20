@@ -5,7 +5,8 @@ Test::DBIC::ExpectedQueries - Test that only expected DBIx::Class queries are ru
 =head1 DESCRIPTION
 
 Ensure that only the DBIx::Class SQL queries you expect are executed
-while a particular piece of code under test is run.
+while a particular piece of code under test is run. Find the places in
+your code where the unexpected queries are executed.
 
 
 =head2 Avoiding the n+1 problem
@@ -15,8 +16,9 @@ the fact that it might be causing one query for each and every row in
 the resultset. This can easily be solved by prefetching those
 relations, but you have to know it happens first.
 
-This module will help you with that, and to ensure you don't
-accidentally start running many single-row queries in the future.
+This module will help you finding unexpected queries, where they are
+being caused, and to ensure you don't accidentally start running many
+single-row queries in the future.
 
 
 
@@ -78,6 +80,52 @@ currently known behaviour.
 
 Whether you want to nail down the expected queries with exact counts,
 or just put wide-margin comparisons in place is up to you.
+
+
+=head2 Finding the unexpected queries
+
+Once you find unexpected queries made by your code, the next step is
+eliminating them. But where are they called from?
+
+
+=head3 Chained ResultSets
+
+DBIC has this nice feature of chaining resultsets, which means you can
+create a resultset and later modify it by adding things to the WHERE
+clause, joining in other resultsets, add prefetching of relations or
+whatever you need to do.
+
+You can create small logical pieces of queries (and put them on their
+corresponding Result/ResultSet classes) and then combine them in to
+actual queries, expressed in higher level operation. This is very,
+very powerful and one of the coolest features of DBIC.
+
+There is a problem with passing around a resultset before finally
+executing it though, and that is that it can often be tricky to find
+exactly where it is being executed.
+
+=head3 Following relations
+
+The problem of finding the source of a database call isn't limited to
+chained queries though. The same thing happens when you construct a
+query, and then follow relations off of the main table. This is what
+causes the n + 1 problem and you accidentally make n queries for
+individual rows on top of the first one.
+
+These additional queries might be a long way off from where the
+initial query was made.
+
+
+=head3 Dump the call stack
+
+To solve this problem of where the queries originate you can tell
+Test::DBIC::ExpectedQueries to show the call_stack for particular
+tables.
+
+These call stacks may be quite deep, so you'll have to find the
+unexpected queries first, and then enable the call stack for each of
+them. That will also avoid spamming the test output with things you're
+not interested in.
 
 
 =head2 Return value from the test
