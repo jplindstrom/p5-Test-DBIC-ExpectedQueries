@@ -4,7 +4,8 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
-*
+* Table level option "stack_trace" to show a strack trace for each SQL
+  query that fails.
 
 
 
