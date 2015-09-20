@@ -661,6 +661,11 @@ SQL queries are identified using quick-n-dirty regexes, to that might
 be a bit brittle (and yet database agnostic, so there's that). Please
 report cases with example SQL.
 
+If you have an anonymous subquery, that query might appear as a table
+called "SELECT". If you find anything like this, or similar strange
+results, please raise an issue on GitHub and provide the SQL text.
+
+
 
 =head1 COPYRIGHT & LICENSE
 
