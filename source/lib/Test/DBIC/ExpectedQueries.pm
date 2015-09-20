@@ -30,7 +30,7 @@ accidentally start running many single-row queries in the future.
 
 =head2 Simple
 
-    expected_queries(
+    my @book_rows = expected_queries(
         $schema,
         sub {
             $schema->resultset("Book")->find(34);
@@ -38,8 +38,8 @@ accidentally start running many single-row queries in the future.
             $schema->resultset("Book")->search( undef, { join => "author" } )->all;
         },
         {
-            book   => { select => "<= 2"},
-            author => { insert => undef },
+            book   => { select => "<= 2" },
+            author => { insert => undef  },
         },
     );
 
@@ -51,7 +51,7 @@ accidentally start running many single-row queries in the future.
         $schema->resultset("Book")->find(34);
         $schema->resultset("Author")->create( ... );
     });
-    $queries->run(sub {
+    my @book_rows = $queries->run(sub {
         $schema->resultset("Book")->search( undef, { join => "author" } )->all;
     });
 
