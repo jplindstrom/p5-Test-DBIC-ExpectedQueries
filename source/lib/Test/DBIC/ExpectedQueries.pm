@@ -80,9 +80,40 @@ Whether you want to nail down the expected queries with exact counts,
 or just put wide-margin comparisons in place is up to you.
 
 
+=head2 Return value from the test
+
+For the subroutine C<expected_queries(...)>, and the method
+C<$queries->run(...)>, the return value is whatever the subroutine
+under test returned, so it's easy to wrap the DBIC code under test and
+still get out the result.
+
+It is context sensitive.
+
+
+=head2 Executed queries vs resultsets
+
+Only queries actually executed inside the test are being
+monitored. This sounds obvious, but might be a source of problems.
+
+Many DBIC methods are context sensitive, and in scalar context might
+just return an unrealized resultset rather than execute a query and
+return the resulting rows. If you're unsure, assigning the query to an
+array will make it run in list context and therefore execute the SQL
+query.
+
+
+=head2 DBIC_TRACE
+
+Normally, setting the ENV variable DBIC_TRACE can be used to "warn"
+the DBIC queries.
+
+Test::DBIC:ExpectedQueries uses the same mechanism as DBIC_TRACE, so
+while the code is run under the test the normal DBIC_TRACE will not
+happen.
+
+
 
 =head1 SUBROUTINES
-
 
 =head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {} ) : $result | @result
 
