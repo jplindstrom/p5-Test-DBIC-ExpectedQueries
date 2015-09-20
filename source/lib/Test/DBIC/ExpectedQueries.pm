@@ -30,23 +30,32 @@ single-row queries in the future.
     use Test::DBIC::ExpectedQueries;
     my $schema = ...; # Connect to a DBIx::Class schema
 
-=head2 Simple
+=head2 Simple test subroutine
 
     my @book_rows = expected_queries(
         $schema,
         sub {
             $schema->resultset("Book")->find(34);
+            do_other_things();
             $schema->resultset("Author")->create( ... );
             $schema->resultset("Book")->search( undef, { join => "author" } )->all;
         },
         {
-            book   => { select => "<= 2" },
-            author => { insert => undef  },
+            author => { insert => undef  }, # don't care
+            genre  => { select => 2      }, # number of queries
+            book   => {
+                select => {
+                    count => "<= 2",  # number of queries
+                    mean  => "< 0.4", # mean duration
+                    sum   => "< 1",   # total query duration
+                },
+                trace  => 1,
+            },
         },
     );
 
 
-=head2 Flexible
+=head2 Flexible test object
 
     my $queries = Test::DBI::ExpectedQueries->new({ schema => $schema }});
     $queries->run(sub {
@@ -54,12 +63,16 @@ single-row queries in the future.
         $schema->resultset("Author")->create( ... );
     });
     my @book_rows = $queries->run(sub {
+        do_other_stuff();
         $schema->resultset("Book")->search( undef, { join => "author" } )->all;
     });
 
     $queries->test({
-        book   => { select => "<= 2"},
+        book   => { select => "<= 2"}, # number of queries
         author => { insert => undef },
+        genres => {
+            insert => { max => "0.05" }, # max duration
+        },
     });
 
 
