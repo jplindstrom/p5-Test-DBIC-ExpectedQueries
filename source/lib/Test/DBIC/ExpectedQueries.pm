@@ -178,7 +178,8 @@ $expected_table_operations is used, but here's a simple example:
 
     {
         book   => { select => "<= 2", update => 3 },
-        author => { insert => undef },
+        author => { insert => undef               },
+        genre  => { select => 2, stack_trace => 1 },
     },
 
 
@@ -202,6 +203,11 @@ A number means exact match. Comparisons in a string means, well that.
 =item *
 
 Undef means any number of queries
+
+=item *
+
+If you need to see where the queries for a table are executed from,
+use C<stack_trace => 1>.
 
 =back
 
@@ -268,7 +274,8 @@ clean slate.
             },
             # For the "author" table
             author => {
-                update => 8,       # Number of updates must be exactly 8
+                update      => 8,  # Number of updates must be exactly 8
+                stack_trace => 1,  # Show stack trace if it fails
             },
             user_session => {
                 delete => "< 10",  # No more than 9 deletes allowed
