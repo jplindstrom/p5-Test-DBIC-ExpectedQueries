@@ -5,7 +5,8 @@ Test::DBIC::ExpectedQueries - Test that only expected DBIx::Class queries are ru
 =head1 DESCRIPTION
 
 Ensure that only the DBIx::Class SQL queries you expect are executed
-while a particular piece of code under test is run.
+while a particular piece of code under test is run. Find the places in
+your code where the unexpected queries are executed.
 
 
 =head2 Avoiding the n+1 problem
@@ -15,8 +16,9 @@ the fact that it might be causing one query for each and every row in
 the resultset. This can easily be solved by prefetching those
 relations, but you have to know it happens first.
 
-This module will help you with that, and to ensure you don't
-accidentally start running many single-row queries in the future.
+This module will help you finding unexpected queries, where they are
+being caused, and to ensure you don't accidentally start running many
+single-row queries in the future.
 
 
 
@@ -30,7 +32,7 @@ accidentally start running many single-row queries in the future.
 
 =head2 Simple
 
-    expected_queries(
+    my @book_rows = expected_queries(
         $schema,
         sub {
             $schema->resultset("Book")->find(34);
@@ -38,8 +40,11 @@ accidentally start running many single-row queries in the future.
             $schema->resultset("Book")->search( undef, { join => "author" } )->all;
         },
         {
-            book   => { select => "<= 2"},
-            author => { insert => undef },
+            book   => {
+                select      => "<= 2",
+                stack_trace => 1,
+            },
+            author => { insert => undef  },
         },
     );
 
@@ -51,7 +56,7 @@ accidentally start running many single-row queries in the future.
         $schema->resultset("Book")->find(34);
         $schema->resultset("Author")->create( ... );
     });
-    $queries->run(sub {
+    my @book_rows = $queries->run(sub {
         $schema->resultset("Book")->search( undef, { join => "author" } )->all;
     });
 
@@ -80,9 +85,86 @@ Whether you want to nail down the expected queries with exact counts,
 or just put wide-margin comparisons in place is up to you.
 
 
+=head2 Finding the unexpected queries
+
+Once you find unexpected queries made by your code, the next step is
+eliminating them. But where are they called from?
+
+
+=head3 Chained ResultSets
+
+DBIC has this nice feature of chaining resultsets, which means you can
+create a resultset and later modify it by adding things to the WHERE
+clause, joining in other resultsets, add prefetching of relations or
+whatever you need to do.
+
+You can create small logical pieces of queries (and put them on their
+corresponding Result/ResultSet classes) and then combine them in to
+actual queries, expressed in higher level operation. This is very,
+very powerful and one of the coolest features of DBIC.
+
+There is a problem with passing around a resultset before finally
+executing it though, and that is that it can often be tricky to find
+exactly where it is being executed.
+
+=head3 Following relations
+
+The problem of finding the source of a database call isn't limited to
+chained queries though. The same thing happens when you construct a
+query, and then follow relations off of the main table. This is what
+causes the n + 1 problem and you accidentally make n queries for
+individual rows on top of the first one.
+
+These additional queries might be a long way off from where the
+initial query was made.
+
+
+=head3 Show the stack trace
+
+To solve this problem of where the queries originate you can tell
+Test::DBIC::ExpectedQueries to show a C<stack_trace> for particular
+tables.
+
+These call stacks may be quite deep, so you'll have to find the
+unexpected queries first, and then enable the call stack for each of
+them. That will also avoid spamming the test output with things you're
+not interested in.
+
+
+=head2 Return value from the test
+
+For the subroutine C<expected_queries(...)>, and the method
+C<$queries->run(...)>, the return value is whatever the subroutine
+under test returned, so it's easy to wrap the DBIC code under test and
+still get out the result.
+
+It is context sensitive.
+
+
+=head2 Executed queries vs resultsets
+
+Only queries actually executed inside the test are being
+monitored. This sounds obvious, but might be a source of problems.
+
+Many DBIC methods are context sensitive, and in scalar context might
+just return an unrealized resultset rather than execute a query and
+return the resulting rows. If you're unsure, assigning the query to an
+array will make it run in list context and therefore execute the SQL
+query.
+
+
+=head2 DBIC_TRACE
+
+Normally, setting the ENV variable DBIC_TRACE can be used to "warn"
+the DBIC queries.
+
+Test::DBIC:ExpectedQueries uses the same mechanism as DBIC_TRACE, so
+while the code is run under the test the normal DBIC_TRACE will not
+happen.
+
+
 
 =head1 SUBROUTINES
-
 
 =head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {} ) : $result | @result
 
@@ -96,7 +178,8 @@ $expected_table_operations is used, but here's a simple example:
 
     {
         book   => { select => "<= 2", update => 3 },
-        author => { insert => undef },
+        author => { insert => undef               },
+        genre  => { select => 2, stack_trace => 1 },
     },
 
 
@@ -120,6 +203,11 @@ A number means exact match. Comparisons in a string means, well that.
 =item *
 
 Undef means any number of queries
+
+=item *
+
+If you need to see where the queries for a table are executed from,
+use C<stack_trace => 1>.
 
 =back
 
@@ -186,7 +274,8 @@ clean slate.
             },
             # For the "author" table
             author => {
-                update => 8,       # Number of updates must be exactly 8
+                update      => 8,  # Number of updates must be exactly 8
+                stack_trace => 1,  # Show stack trace if it fails
             },
             user_session => {
                 delete => "< 10",  # No more than 9 deletes allowed
@@ -246,6 +335,7 @@ use Test::More;
 use Try::Tiny;
 use Carp;
 use DBIx::Class;
+use Devel::StackTrace;
 
 use Test::DBIC::ExpectedQueries::Query;
 
@@ -283,28 +373,13 @@ has schema => (
     required => 1,
 );
 
-has queries_sql => (
-    is      => "rw",
-    lazy    => 1,
-    default => sub { [] },
-    trigger => sub { shift->clear_queries },
-    clearer => 1,
-);
-
 has queries => (
     is      => "rw",
-    lazy    => 1,
-    builder => "_build_queries",
+    default => sub { [] },
     trigger => sub { shift->clear_table_operation_count },
+    lazy    => 1,
     clearer => 1,
 );
-sub _build_queries {
-    my $self = shift;
-    return [
-        map { Test::DBIC::ExpectedQueries::Query->new({ sql => $_ })}
-        @{$self->queries_sql}
-    ];
-}
 
 has table_operation_count => (
     is      => "lazy",
@@ -321,7 +396,50 @@ sub _build_table_operation_count {
     return $table_operation_count;
 }
 
+has ignore_classes => ( is => "lazy" );
+sub _build_ignore_classes {
+    my $self = shift;
+    return [
+        # "main",
+        "Test::DBIC::ExpectedQueries",
+        "Class::MOP::Method::Wrapped",
+        "Moose::Meta::Method::Delegation",
+        "Context::Preserve",
+        # "DBIx::Class",
+        # "DBIx::Class::Schema",
+        # "DBIx::Class::Storage::BlockRunner",
+        "DBIx::Class::ResultSet",
+        "DBIx::Class::Row",
+        "DBIx::Class::Storage::DBI",
+        "DBIx::Class::Storage::Statistics",
+        "DBIx::Class::Row",
+        "Test::Builder",
+        "Test::Class",
+        "Test::Class::Moose",
+        "Test::Class::Moose::Runner",
+        "Test::Class::Moose::Report::Method",
+        "Test::Class::Moose::Role::Executor",
+        "Test::Class::Moose::Executor::Sequential",
+        "Try::Tiny",
+        "Try::Tiny::Catch",
+    ];
+}
 
+sub _stack_trace {
+    my $self = shift;
+
+    my $trace = Devel::StackTrace->new(
+        message      => "executed",
+        ignore_class => @{$self->ignore_classes},
+    );
+
+    my $callers = $trace->as_string;
+    chomp($callers);
+    $callers =~ s/\n/ <-- /gsm;
+    $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
+
+    return $callers;
+}
 
 sub run {
     my $self = shift;
@@ -332,14 +450,20 @@ sub run {
     my $previous_debug = $storage->debug();
     $storage->debug(1);
 
-    my @queries_sql;
+    my @queries;
     my $previous_callback = $storage->debugcb();
     $storage->debugcb( sub {
         my ($op, $sql) = @_;
         ###JPL: don't ignore the $op, use it instead of parsing out
         ###the operation?
         chomp($sql);
-        push(@queries_sql, $sql);
+        push(
+            @queries,
+            Test::DBIC::ExpectedQueries::Query->new({
+                sql         => $sql,
+                stack_trace => $self->_stack_trace(),
+            }),
+        );
     } );
 
     my $return_values;
@@ -357,7 +481,7 @@ sub run {
         $storage->debug($previous_debug);
     };
 
-    $self->queries_sql([ @{$self->queries_sql}, @queries_sql ]);
+    $self->queries([ @{$self->queries}, @queries ]);
 
     return @$return_values if wantarray();
     return $return_values->[0];
@@ -372,7 +496,6 @@ sub test {
     my $failure_message = $self->check_table_operation_counts($expected);
     my $unknown_warning = $self->unknown_warning;
 
-    $self->clear_queries_sql();
     $self->clear_queries();
     $self->clear_table_operation_count();
 
@@ -389,7 +512,7 @@ sub test {
 
 sub check_table_operation_counts {
     my $self = shift;
-    my ($expected_table_count, ) = @_;
+    my ($expected_table_count) = @_;
 
     my $table_operation_count = $self->table_operation_count();
 
@@ -397,6 +520,7 @@ sub check_table_operation_counts {
     my $table_test_result = {};
     for my $table (sort keys %{$table_operation_count}) {
         my $operation_count = $table_operation_count->{$table};
+
         for my $operation (sort keys %$operation_count) {
             my $actual_count = $operation_count->{$operation};
             my $expected_outcome = do {
@@ -429,7 +553,10 @@ sub check_table_operation_counts {
             $message .= "* Table: $table\n";
             $message .= join("\n", @{$table_test_result->{$table}});
             $message .= "\nActually executed SQL queries on table '$table':\n";
-            $message .= $self->sql_queries_for_table($table) . "\n\n";
+            $message .= $self->sql_queries_for_table(
+                $table,
+                $expected_table_count,
+            ) . "\n\n";
         }
         return $message;
     }
@@ -454,10 +581,17 @@ sub unknown_queries {
 
 sub sql_queries_for_table {
     my $self = shift;
-    my ($table) = @_;
+    my ($table, $expected_table_count) = @_;
+
+    my $stack_trace = $expected_table_count->{$table}->{stack_trace} || 0;
+
     return join(
         "\n",
-        map  { $_->display_sql }
+        map  {
+            my $out = $_->display_sql;
+            $stack_trace and $out .= "\n" . $_->display_stack_trace;
+            $out;
+        }
         grep { lc($_->table // "") eq lc($table // "") }
         @{$self->queries},
     );
@@ -533,6 +667,11 @@ L<https://github.com/jplindstrom/p5-Test-DBIC-ExpectedQueries/issues>.
 SQL queries are identified using quick-n-dirty regexes, to that might
 be a bit brittle (and yet database agnostic, so there's that). Please
 report cases with example SQL.
+
+If you have an anonymous subquery, that query might appear as a table
+called "SELECT". If you find anything like this, or similar strange
+results, please raise an issue on GitHub and provide the SQL text.
+
 
 
 =head1 COPYRIGHT & LICENSE

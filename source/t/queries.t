@@ -8,15 +8,20 @@ use Test::DBIC::ExpectedQueries;
 
 my $queries = Test::DBIC::ExpectedQueries->new({
     schema => "don't run",
-    queries_sql => [
-        "UPDATE datum SET is_valid = ? WHERE ( id = ? )",
-        "
+    queries => [
+        Test::DBIC::ExpectedQueries::Query->new({
+            sql => "UPDATE datum SET is_valid = ? WHERE ( id = ? )",
+            stack_trace => "not under test",
+        }),
+        Test::DBIC::ExpectedQueries::Query->new({
+            sql => "
 sELECT *
 from file",
-    ]
+            stack_trace => "not under test",
+        }),
+    ],
 });
 
-is(scalar @{$queries->queries_sql}, 2, "Parsed out two queries");
 is(scalar @{$queries->queries}, 2, "Parsed out two query objects");
 
 my $query = $queries->queries->[0];

@@ -13,7 +13,10 @@ sub test_parse {
     my ($sql, $operation, $table) = @_;
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
-    my $query = Test::DBIC::ExpectedQueries::Query->new({ sql => $sql });
+    my $query = Test::DBIC::ExpectedQueries::Query->new({
+        sql         => $sql,
+        stack_trace => "not under test",
+    });
     is($query->operation, $operation, "Correct ->operation for $operation");
     is($query->table, $table, "Correct ->table for $operation");
 }
