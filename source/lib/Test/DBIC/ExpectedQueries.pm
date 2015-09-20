@@ -40,7 +40,10 @@ single-row queries in the future.
             $schema->resultset("Book")->search( undef, { join => "author" } )->all;
         },
         {
-            book   => { select => "<= 2" },
+            book   => {
+                select      => "<= 2",
+                stack_trace => 1,
+            },
             author => { insert => undef  },
         },
     );
@@ -116,10 +119,10 @@ These additional queries might be a long way off from where the
 initial query was made.
 
 
-=head3 Dump the call stack
+=head3 Show the stack trace
 
 To solve this problem of where the queries originate you can tell
-Test::DBIC::ExpectedQueries to show the call_stack for particular
+Test::DBIC::ExpectedQueries to show a C<stack_trace> for particular
 tables.
 
 These call stacks may be quite deep, so you'll have to find the
@@ -502,7 +505,7 @@ sub test {
 
 sub check_table_operation_counts {
     my $self = shift;
-    my ($expected_table_count, ) = @_;
+    my ($expected_table_count) = @_;
 
     my $table_operation_count = $self->table_operation_count();
 
@@ -510,6 +513,7 @@ sub check_table_operation_counts {
     my $table_test_result = {};
     for my $table (sort keys %{$table_operation_count}) {
         my $operation_count = $table_operation_count->{$table};
+
         for my $operation (sort keys %$operation_count) {
             my $actual_count = $operation_count->{$operation};
             my $expected_outcome = do {
@@ -542,7 +546,10 @@ sub check_table_operation_counts {
             $message .= "* Table: $table\n";
             $message .= join("\n", @{$table_test_result->{$table}});
             $message .= "\nActually executed SQL queries on table '$table':\n";
-            $message .= $self->sql_queries_for_table($table) . "\n\n";
+            $message .= $self->sql_queries_for_table(
+                $table,
+                $expected_table_count,
+            ) . "\n\n";
         }
         return $message;
     }
@@ -567,12 +574,15 @@ sub unknown_queries {
 
 sub sql_queries_for_table {
     my $self = shift;
-    my ($table) = @_;
+    my ($table, $expected_table_count) = @_;
+
+    my $stack_trace = $expected_table_count->{$table}->{stack_trace} || 0;
+
     return join(
         "\n",
         map  {
             my $out = $_->display_sql;
-            $out .= "\n" . $_->display_stack_trace;
+            $stack_trace and $out .= "\n" . $_->display_stack_trace;
             $out;
         }
         grep { lc($_->table // "") eq lc($table // "") }

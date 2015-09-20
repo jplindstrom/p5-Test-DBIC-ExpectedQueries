@@ -56,7 +56,7 @@ $queries->queries([
 
 my $failure = $queries->check_table_operation_counts({
     puff  => { select => 2 },
-    magic => { insert => "> 0" }
+    magic => { insert => "> 0", stack_trace => 1 },
 });
 
 is(
@@ -65,7 +65,6 @@ is(
 Expected '0' deletes for table 'dragon', got '1'
 Actually executed SQL queries on table 'dragon':
 SQL: (delete on dragon)
-     not under test
 
 * Table: magic
 Expected '0' selects for table 'magic', got '3'
@@ -108,6 +107,7 @@ $failure = $queries->check_table_operation_counts({
 is($failure, "", "Re-setting queries re-sets the stats");
 
 
+###JPL: test all $expected_queries, even if there's no query for one
 
 
 done_testing();
