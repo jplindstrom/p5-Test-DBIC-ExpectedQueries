@@ -309,8 +309,10 @@ use Try::Tiny;
 use Carp;
 use DBIx::Class;
 use Devel::StackTrace;
+use Statistics::Descriptive;
 
 use Test::DBIC::ExpectedQueries::Query;
+use Test::DBIC::ExpectedQueries::Statistics;
 
 
 
@@ -349,24 +351,28 @@ has schema => (
 has queries => (
     is      => "rw",
     default => sub { [] },
-    trigger => sub { shift->clear_table_operation_count },
+    trigger => sub { shift->clear_table_operation_stats },
     lazy    => 1,
     clearer => 1,
 );
 
-has table_operation_count => (
+has table_operation_stats => (
     is      => "lazy",
     clearer => 1,
 );
-sub _build_table_operation_count {
+sub _build_table_operation_stats {
     my $self = shift;
 
-    my $table_operation_count = {};
+    my $table_operation_stats = {};
     for my $query (grep { $_->operation } @{$self->queries}) {
-        $table_operation_count->{ $query->table }->{ $query->operation }++;
+        my $stats = $table_operation_stats
+            ->{ $query->table }
+            ->{ $query->operation }
+            ||= Statistics::Descriptive::Full->new();
+        $stats->add_data( $query->duration );
     }
 
-    return $table_operation_count;
+    return $table_operation_stats;
 }
 
 has ignore_classes => ( is => "lazy" );
@@ -423,21 +429,9 @@ sub run {
     my $previous_debug = $storage->debug();
     $storage->debug(1);
 
-    my @queries;
-    my $previous_callback = $storage->debugcb();
-    $storage->debugcb( sub {
-        my ($op, $sql) = @_;
-        ###JPL: don't ignore the $op, use it instead of parsing out
-        ###the operation?
-        chomp($sql);
-        push(
-            @queries,
-            Test::DBIC::ExpectedQueries::Query->new({
-                sql         => $sql,
-                stack_trace => $self->_stack_trace(),
-            }),
-        );
-    } );
+    my $previous_obj = $storage->debugobj();
+    my $dbic_debug_obj = Test::DBIC::ExpectedQueries::Statistics->new();
+    $storage->debugobj( $dbic_debug_obj );
 
     my $return_values;
     try {
@@ -450,11 +444,14 @@ sub run {
     }
     catch { die($_) }
     finally {
-        $storage->debugcb($previous_callback);
+        $storage->debugobj($previous_obj);
         $storage->debug($previous_debug);
     };
 
-    $self->queries([ @{$self->queries}, @queries ]);
+    $self->queries([
+        @{$self->queries},
+        @{ $dbic_debug_obj->{queries} },
+    ]);
 
     return @$return_values if wantarray();
     return $return_values->[0];
@@ -466,11 +463,11 @@ sub test {
     $expected ||= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
-    my $failure_message = $self->check_table_operation_counts($expected);
+    my $failure_message = $self->check_table_operation_stats($expected);
     my $unknown_warning = $self->unknown_warning;
 
     $self->clear_queries();
-    $self->clear_table_operation_count();
+    $self->clear_table_operation_stats();
 
 
     my $test_description = "Expected queries for tables";
@@ -483,36 +480,42 @@ sub test {
     return 1;
 }
 
-sub check_table_operation_counts {
+sub check_table_operation_stats {
     my $self = shift;
-    my ($expected_table_count, ) = @_;
+    my ($expected_table_stats) = @_;
 
-    my $table_operation_count = $self->table_operation_count();
+    my $table_operation_stats = $self->table_operation_stats();
 
-    my $expected_all_operation = $expected_table_count->{_all_} || {};
+    my $expected_all_operation = $expected_table_stats->{_all_} || {};
     my $table_test_result = {};
-    for my $table (sort keys %{$table_operation_count}) {
-        my $operation_count = $table_operation_count->{$table};
-        for my $operation (sort keys %$operation_count) {
-            my $actual_count = $operation_count->{$operation};
-            my $expected_outcome = do {
-                if ( exists $expected_table_count->{$table}->{$operation} ) {
-                    $expected_table_count->{$table}->{$operation};
+    for my $table (sort keys %{$table_operation_stats}) { # customers
+        # { insert => $i_stats, update => $u_stats }
+        my $operation_stats = $table_operation_stats->{$table};
+        for my $operation (sort keys %$operation_stats) { # update
+            my $actual_stats = $operation_stats->{$operation};
+            my $expected_stats = do {
+                if ( exists $expected_table_stats->{$table}->{$operation} ) {
+                    $expected_table_stats->{$table}->{$operation};
                 }
                 elsif (exists $expected_all_operation->{$operation}) {
                     $expected_all_operation->{$operation};
                 }
                 else { 0 }
             };
-            defined($expected_outcome) or next;
+            defined($expected_stats) or next;
+            ref($expected_stats)
+                or $expected_stats = { count => $expected_stats };
 
-            my $test_result = $self->test_count(
+            my @test_results = $self->test_stats(
                 $table,
                 $operation,
-                $expected_outcome,
-                $actual_count,
+                $expected_stats,
+                $actual_stats,
             );
-            $test_result and push(@{ $table_test_result->{$table} }, $test_result);
+            @test_results and push(
+                @{ $table_test_result->{$table} },
+                @test_results,
+            );
         }
     }
 
@@ -563,30 +566,55 @@ sub sql_queries_for_table {
     );
 }
 
-sub test_count {
+sub test_stats {
     my $self = shift;
-    my ($table, $operation, $expected_outcome, $actual_count) = @_;
+    my ($table, $operation, $expected_stats, $actual_stats) = @_;
+
+    my @results;
+    for my $stat (sort keys %$expected_stats) {
+        my $expected_stat = $expected_stats->{ $stat };
+
+        $actual_stats->can( $stat )
+            or croak("Invalid stat: '$stat' isn't collected");
+        my $actual_stat = $actual_stats->$stat; # or undef
+
+        my $result = $self->compare_stat(
+            $table,
+            $operation,
+            $stat,
+            $expected_stat,
+            $actual_stat,
+        ) or next;
+        push(@results, $result)
+    }
+
+    return @results;
+}
+
+sub compare_stat {
+    my $self = shift;
+    my ($table, $operation, $stat, $expected_stat, $actual_stat) = @_;
 
     my $expected_count;
     my $operator;
-    if($expected_outcome =~ /^ \s* (\d+) /x) {
+    if($expected_stat =~ /^ \s* (\d+) /x) { ###JPL: decimal point
         $operator = "==";
         $expected_count = $1;
     }
-    elsif($expected_outcome =~ /^ \s* (==|!=|>|>=|<|<=) \s* (\d+) /x) {
+    elsif($expected_stat =~ /^ \s* (==|!=|>|>=|<|<=) \s* (\d+) /x) { ###JPL: decimal point
         $operator = $1;
         $expected_count = $2;
     }
     else {
-        croak("expect_queries: invalid comparison ($expected_outcome)\n");
+        croak("expect_queries: invalid comparison ($expected_stat)\n");
     }
 
     #                            actual,                expected
     my $comparison_perl = 'sub { $_[0] ' . $operator . ' $_[1] }';
     my $comparison = eval $comparison_perl; ## no critic
-    $comparison->($actual_count, $expected_count) and return "";
+    $comparison->($actual_stat, $expected_stat) and return undef;
 
-    return "Expected '$expected_outcome' ${operation}s for table '$table', got '$actual_count'";
+    return "Expected $stat '$expected_stat' ${operation}s for table '$table', got '$actual_stat'";
 }
 
 1;

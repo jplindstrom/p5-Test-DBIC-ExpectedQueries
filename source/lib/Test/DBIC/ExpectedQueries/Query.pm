@@ -8,6 +8,7 @@ has sql         => ( is => "ro", required => 1 );
 has stack_trace => ( is => "ro", required => 1 ); # Just a string
 has table       => ( is => "rw" );
 has operation   => ( is => "rw" );
+has duration    => ( is => "rw", default => 0 );
 
 sub BUILD { shift->analyze_sql() }
 

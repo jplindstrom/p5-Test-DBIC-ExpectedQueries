@@ -54,7 +54,7 @@ $queries->queries([
     }),
 ]);
 
-my $failure = $queries->check_table_operation_counts({
+my $failure = $queries->check_table_operation_stats({
     puff  => { select => 2 },
     magic => { insert => "> 0" }
 });
