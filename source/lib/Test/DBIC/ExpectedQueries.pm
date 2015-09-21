@@ -98,41 +98,10 @@ or just put wide-margin comparisons in place is up to you.
 =head2 Finding the unexpected queries
 
 Once you find unexpected queries made by your code, the next step is
-eliminating them. But where are they called from?
+eliminating them.
 
-
-=head3 Chained ResultSets
-
-DBIC has this nice feature of chaining resultsets, which means you can
-create a resultset and later modify it by adding things to the WHERE
-clause, joining in other resultsets, add prefetching of relations or
-whatever you need to do.
-
-You can create small logical pieces of queries (and put them on their
-corresponding Result/ResultSet classes) and then combine them in to
-actual queries, expressed in higher level operation. This is very,
-very powerful and one of the coolest features of DBIC.
-
-There is a problem with passing around a resultset before finally
-executing it though, and that is that it can often be tricky to find
-exactly where it is being executed.
-
-=head3 Following relations
-
-The problem of finding the source of a database call isn't limited to
-chained queries though. The same thing happens when you construct a
-query, and then follow relations off of the main table. This is what
-causes the n + 1 problem and you accidentally make n queries for
-individual rows on top of the first one.
-
-These additional queries might be a long way off from where the
-initial query was made.
-
-
-=head3 Dump the call stack
-
-To solve this problem of where the queries originate you can tell
-Test::DBIC::ExpectedQueries to show the call_stack for particular
+To find where the queries originate you can tell
+Test::DBIC::ExpectedQueries to show the C<call_stack> for particular
 tables.
 
 These call stacks may be quite deep, so you'll have to find the
@@ -158,9 +127,10 @@ monitored. This sounds obvious, but might be a source of problems.
 
 Many DBIC methods are context sensitive, and in scalar context might
 just return an unrealized resultset rather than execute a query and
-return the resulting rows. If you're unsure, assigning the query to an
-array will make it run in list context and therefore execute the SQL
-query.
+return the resulting rows.
+
+If you're unsure, assigning the query to an array will make it run in
+list context and therefore execute the SQL query.
 
 
 =head2 DBIC_TRACE
