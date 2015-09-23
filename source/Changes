@@ -4,7 +4,7 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
-*
+* Bug fix: stack trace ignored classes
 
 
 

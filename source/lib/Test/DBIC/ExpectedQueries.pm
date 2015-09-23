@@ -430,7 +430,7 @@ sub _stack_trace {
 
     my $trace = Devel::StackTrace->new(
         message      => "executed",
-        ignore_class => @{$self->ignore_classes},
+        ignore_class => $self->ignore_classes,
     );
 
     my $callers = $trace->as_string;
