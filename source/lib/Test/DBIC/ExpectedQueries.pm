@@ -578,20 +578,20 @@ sub test_stats {
 
 sub compare_stat {
     my $self = shift;
-    my ($table, $operation, $stat, $expected_stat, $actual_stat) = @_;
+    my ($table, $operation, $stat, $expected_outcome, $actual_stat) = @_;
 
-    my $expected_count;
+    my $expected_stat;
     my $operator;
-    if($expected_stat =~ /^ \s* (\d+) /x) { ###JPL: decimal point
+    if($expected_outcome =~ /^ \s* (\d+) /x) { ###JPL: decimal point
         $operator = "==";
-        $expected_count = $1;
+        $expected_stat = $1;
     }
-    elsif($expected_stat =~ /^ \s* (==|!=|>|>=|<|<=) \s* (\d+) /x) { ###JPL: decimal point
+    elsif($expected_outcome =~ /^ \s* (==|!=|>|>=|<|<=) \s* (\d+) /x) { ###JPL: decimal point
         $operator = $1;
-        $expected_count = $2;
+        $expected_stat = $2;
     }
     else {
-        croak("expect_queries: invalid comparison ($expected_stat)\n");
+        croak("expect_queries: invalid comparison ($expected_outcome)\n");
     }
 
     #                            actual,                expected
