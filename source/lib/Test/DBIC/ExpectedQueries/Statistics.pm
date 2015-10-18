@@ -14,8 +14,8 @@ sub query_end {
     my $self = shift;
     my ($sql, @args) = @_;
 
-    my $duration = $start_time ?
-        time() - $start_time
+    my $duration = $start_time
+        ? time() - $start_time
         : 0;
 
     my $queries = $self->{queries} ||= [];
