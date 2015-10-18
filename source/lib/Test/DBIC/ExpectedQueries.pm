@@ -308,7 +308,6 @@ use Test::More;
 use Try::Tiny;
 use Carp;
 use DBIx::Class;
-use Devel::StackTrace;
 use Statistics::Descriptive;
 
 use Test::DBIC::ExpectedQueries::Query;
@@ -402,22 +401,6 @@ sub _build_ignore_classes {
         "Try::Tiny",
         "Try::Tiny::Catch",
     ];
-}
-
-sub _stack_trace {
-    my $self = shift;
-
-    my $trace = Devel::StackTrace->new(
-        message      => "executed",
-        ignore_class => @{$self->ignore_classes},
-    );
-
-    my $callers = $trace->as_string;
-    chomp($callers);
-    $callers =~ s/\n/ <-- /gsm;
-    $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
-
-    return $callers;
 }
 
 sub run {

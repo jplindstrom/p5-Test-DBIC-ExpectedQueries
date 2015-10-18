@@ -2,6 +2,7 @@ package Test::DBIC::ExpectedQueries::Statistics;
 use base "DBIx::Class::Storage::Statistics";
 
 use Time::HiRes qw(time);
+use Devel::StackTrace;
 
 my $start_time = 0;
 sub query_start {
@@ -29,6 +30,22 @@ sub query_end {
             duration    => $duration,
         }),
     );
+}
+
+sub _stack_trace {
+    my $self = shift;
+
+    my $trace = Devel::StackTrace->new(
+        message      => "executed",
+        ignore_class => @{$self->ignore_classes},
+    );
+
+    my $callers = $trace->as_string;
+    chomp($callers);
+    $callers =~ s/\n/ <-- /gsm;
+    $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
+
+    return $callers;
 }
 
 1;
