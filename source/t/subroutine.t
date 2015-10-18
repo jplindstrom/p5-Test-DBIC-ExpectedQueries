@@ -8,7 +8,7 @@ use Moo;
 
 sub storage { return shift }
 sub debug   { return shift }
-sub debugcb { return shift }
+has debugobj => ( is => "rw" );
 
 
 
