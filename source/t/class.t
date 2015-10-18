@@ -5,7 +5,6 @@ use Test::More;
 use lib "lib";
 use Test::DBIC::ExpectedQueries;
 
-
 my $queries = Test::DBIC::ExpectedQueries->new({
     schema => "don't hit anything that uses ->schema and we'll be fine",
 });
@@ -62,13 +61,13 @@ my $failure = $queries->check_table_operation_stats({
 is(
     $failure,
     "* Table: dragon
-Expected '0' deletes for table 'dragon', got '1'
+Expected count '0' deletes for table 'dragon', got '1'
 Actually executed SQL queries on table 'dragon':
 SQL: (delete on dragon)
      not under test
 
 * Table: magic
-Expected '0' selects for table 'magic', got '3'
+Expected count '0' selects for table 'magic', got '3'
 Actually executed SQL queries on table 'magic':
 SQL: (insert on magic)
      not under test
@@ -101,7 +100,7 @@ note "Check it works to run many times and then checking";
 $queries->queries([
     query("puff", "select"),
 ]);
-$failure = $queries->check_table_operation_counts({
+$failure = $queries->check_table_operation_stats({
     puff  => { select => 1 },
 });
 
