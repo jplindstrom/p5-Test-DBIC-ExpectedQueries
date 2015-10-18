@@ -413,7 +413,9 @@ sub run {
     $storage->debug(1);
 
     my $previous_obj = $storage->debugobj();
-    my $dbic_debug_obj = Test::DBIC::ExpectedQueries::Statistics->new();
+    my $dbic_debug_obj = Test::DBIC::ExpectedQueries::Statistics->new({
+        ignore_classes => $self->ignore_classes,
+    });
     $storage->debugobj( $dbic_debug_obj );
 
     my $return_values;
@@ -432,8 +434,8 @@ sub run {
     };
 
     $self->queries([
-        @{$self->queries},
-        @{ $dbic_debug_obj->{queries} },
+        @{ $self->queries },
+        @{ $dbic_debug_obj->queries },
     ]);
 
     return @$return_values if wantarray();

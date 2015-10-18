@@ -1,29 +1,41 @@
 package Test::DBIC::ExpectedQueries::Statistics;
-use base "DBIx::Class::Storage::Statistics";
+use Moo;
+extends "DBIx::Class::Storage::Statistics";
 
 use Time::HiRes qw(time);
 use Devel::StackTrace;
+
+has queries => ( is => "lazy" );
+sub _build_queries { [] }
+
+has ignore_classes => ( is => "lazy" );
+sub _build_ignore_classes { [] }
+
+has start_time => ( is => "lazy" );
+sub _build_start_time { 0 }
+
+
 
 my $start_time = 0;
 sub query_start {
     my $self = shift;
     my ($sql, @args) = @_;
-    $start_time = time();
+    $self->start_time( time() );
 }
 
 sub query_end {
     my $self = shift;
     my ($sql, @args) = @_;
 
+    my $start_time = $self->start_time;
     my $duration = $start_time
         ? time() - $start_time
         : 0;
-
-    my $queries = $self->{queries} ||= [];
+    $self->start_time(0);
 
     chomp($sql);
     push(
-        @$queries,
+        @{$self->queries},
         Test::DBIC::ExpectedQueries::Query->new({
             sql         => $sql,
             stack_trace => $self->_stack_trace(),
