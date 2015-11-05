@@ -4,7 +4,7 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
-*
+* Bug fix: Avoid wantarray being masked inside try-catch block
 
 
 

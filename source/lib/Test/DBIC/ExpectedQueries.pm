@@ -444,6 +444,7 @@ sub _stack_trace {
 sub run {
     my $self = shift;
     my ($subref) = @_;
+    my $wantarray = wantarray(); # Avoid it being masked in side try-catch block
 
     my $storage = $self->schema->storage;
 
@@ -468,7 +469,7 @@ sub run {
 
     my $return_values;
     try {
-        if (wantarray()) {
+        if ($wantarray) {
             $return_values = [ $subref->() ];
         }
         else {
@@ -483,7 +484,7 @@ sub run {
 
     $self->queries([ @{$self->queries}, @queries ]);
 
-    return @$return_values if wantarray();
+    return @$return_values if $wantarray;
     return $return_values->[0];
 }
 
