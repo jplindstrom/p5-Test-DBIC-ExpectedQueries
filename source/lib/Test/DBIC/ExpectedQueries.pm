@@ -345,7 +345,7 @@ use Test::DBIC::ExpectedQueries::Query;
 
 sub expected_queries {
     my ($schema, $subref, $expected) = @_;
-    $expected ||= {};
+    $expected //= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $queries = Test::DBIC::ExpectedQueries->new({ schema => $schema });
@@ -360,7 +360,7 @@ sub expected_queries {
 
     $queries->test($expected);
 
-    return @$return_values if wantarray();
+    return @{$return_values} if wantarray();
     return $return_values->[0];
 }
 
@@ -400,28 +400,26 @@ has ignore_classes => ( is => "lazy" );
 sub _build_ignore_classes {
     my $self = shift;
     return [
-        # "main",
-        "Test::DBIC::ExpectedQueries",
-        "Class::MOP::Method::Wrapped",
-        "Moose::Meta::Method::Delegation",
-        "Context::Preserve",
-        # "DBIx::Class",
-        # "DBIx::Class::Schema",
-        # "DBIx::Class::Storage::BlockRunner",
-        "DBIx::Class::ResultSet",
-        "DBIx::Class::Row",
-        "DBIx::Class::Storage::DBI",
-        "DBIx::Class::Storage::Statistics",
-        "DBIx::Class::Row",
-        "Test::Builder",
-        "Test::Class",
-        "Test::Class::Moose",
-        "Test::Class::Moose::Runner",
-        "Test::Class::Moose::Report::Method",
-        "Test::Class::Moose::Role::Executor",
-        "Test::Class::Moose::Executor::Sequential",
-        "Try::Tiny",
-        "Try::Tiny::Catch",
+		qw(
+			Test::DBIC::ExpectedQueries
+			Class::MOP::Method::Wrapped
+			Moose::Meta::Method::Delegation
+			Context::Preserve
+			DBIx::Class::ResultSet
+			DBIx::Class::Row
+			DBIx::Class::Storage::DBI
+			DBIx::Class::Storage::Statistics
+			DBIx::Class::Row
+			Test::Builder
+			Test::Class
+			Test::Class::Moose
+			Test::Class::Moose::Runner
+			Test::Class::Moose::Report::Method
+			Test::Class::Moose::Role::Executor
+			Test::Class::Moose::Executor::Sequential
+			Try::Tiny
+			Try::Tiny::Catch
+		)
     ];
 }
 
@@ -444,7 +442,7 @@ sub _stack_trace {
 sub run {
     my $self = shift;
     my ($subref) = @_;
-    my $wantarray = wantarray(); # Avoid it being masked in side try-catch block
+    my $wantarray = wantarray(); # Avoid it being masked inside try-catch block
 
     my $storage = $self->schema->storage;
 
@@ -484,14 +482,14 @@ sub run {
 
     $self->queries([ @{$self->queries}, @queries ]);
 
-    return @$return_values if $wantarray;
+    return @{$return_values} if $wantarray;
     return $return_values->[0];
 }
 
 sub test {
     my $self = shift;
     my ($expected) = @_;
-    $expected ||= {};
+    $expected //= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $failure_message = $self->check_table_operation_counts($expected);
@@ -517,12 +515,12 @@ sub check_table_operation_counts {
 
     my $table_operation_count = $self->table_operation_count();
 
-    my $expected_all_operation = $expected_table_count->{_all_} || {};
+    my $expected_all_operation = $expected_table_count->{_all_} // {};
     my $table_test_result = {};
     for my $table (sort keys %{$table_operation_count}) {
         my $operation_count = $table_operation_count->{$table};
 
-        for my $operation (sort keys %$operation_count) {
+        for my $operation (sort keys %{$operation_count}) {
             my $actual_count = $operation_count->{$operation};
             my $expected_outcome = do {
                 if ( exists $expected_table_count->{$table}->{$operation} ) {
@@ -548,7 +546,7 @@ sub check_table_operation_counts {
     ###JPL: also look at remaining in $expected, to make sure those
     ###queries are run
 
-    if(scalar keys %$table_test_result) {
+    if(scalar keys %{$table_test_result}) {
         my $message = "";
         for my $table (sort keys %{$table_test_result}) {
             $message .= "* Table: $table\n";
@@ -584,7 +582,7 @@ sub sql_queries_for_table {
     my $self = shift;
     my ($table, $expected_table_count) = @_;
 
-    my $stack_trace = $expected_table_count->{$table}->{stack_trace} || 0;
+    my $stack_trace = $expected_table_count->{$table}->{stack_trace} // 0;
 
     return join(
         "\n",
