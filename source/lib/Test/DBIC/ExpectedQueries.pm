@@ -428,14 +428,11 @@ sub _build_ignore_classes {
 sub _stack_trace {
     my $self = shift;
 
-    my $trace = Devel::StackTrace->new(
-        message      => "executed",
-        ignore_class => $self->ignore_classes,
-    );
+    # TODO: filter out file paths
+    my @frames = Carp::longmess("query")
+        ->split(qr/\n/)->map_by("strip");
 
-    my $callers = $trace->as_string;
-    chomp($callers);
-    $callers =~ s/\n/ <-- /gsm;
+    my $callers = @frames->join(" <-- ");
     $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
 
     return $callers;
