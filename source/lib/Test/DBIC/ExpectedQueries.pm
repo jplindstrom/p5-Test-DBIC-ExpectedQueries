@@ -51,7 +51,7 @@ single-row queries in the future.
 
 =head2 Flexible
 
-    my $queries = Test::DBI::ExpectedQueries->new({ schema => $schema }});
+    my $queries = Test::DBIC::ExpectedQueries->new({ schema => $schema }});
     $queries->run(sub {
         $schema->resultset("Book")->find(34);
         $schema->resultset("Author")->create( ... );
