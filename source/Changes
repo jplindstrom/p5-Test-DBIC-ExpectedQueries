@@ -4,6 +4,8 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+2.000 -- 2019-07-17 21:14:39 UTC
+
 * BREAKING CHANGE -- This release includes a bug fix to the
   library. It now tests queries more comprehensively (i.e. all
   queries).
