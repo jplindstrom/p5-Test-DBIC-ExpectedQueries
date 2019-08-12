@@ -4,6 +4,8 @@ Feature oriented Revision history for Test-DBIC-ExpectedQueries
 
 {{$NEXT}}
 
+* Support a test description, and report the test correctly.
+
 2.000 -- 2019-07-17 21:14:39 UTC
 
 * BREAKING CHANGE -- This release includes a bug fix to the

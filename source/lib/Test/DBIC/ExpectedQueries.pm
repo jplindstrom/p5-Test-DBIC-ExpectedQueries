@@ -52,6 +52,7 @@ single-row queries in the future.
             },
             author => { insert => undef  },
         },
+        "Doing that stuff runs correct SQL", # optional
     );
 
 
@@ -70,6 +71,15 @@ single-row queries in the future.
         book   => { select => "<= 2"},
         author => { insert => undef },
     });
+
+    # or, with test description
+    $queries->test(
+        {
+            book   => { select => "<= 2"},
+            author => { insert => undef },
+        },
+        "Doing that stuff runs correct SQL", # optional
+    );
 
 
 
@@ -164,18 +174,19 @@ query.
 Normally, setting the ENV variable DBIC_TRACE can be used to "warn"
 the DBIC queries.
 
-Test::DBIC:ExpectedQueries uses the same mechanism as DBIC_TRACE, so
-while the code is run under the test the normal DBIC_TRACE will not
+Test::DBIC:ExpectedQueries uses the same mechanism as DBIC_TRACE does,
+so while the code is run under the test the normal DBIC_TRACE will not
 happen.
 
 
 
 =head1 SUBROUTINES
 
-=head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {} ) : $result | @result
+=head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {}, $description? ) : $result | @result
 
 Run $sub_ref and collect stats for queries executed on $schema, then
-test that they match the $expected_table_operations.
+test (using $description) that they match the
+$expected_table_operations.
 
 Return the return value of $sub_ref->().
 
@@ -238,15 +249,16 @@ You can call $queries->run() multiple times to add to the collected
 stats before finally calling $queries->test().
 
 
-=head2 test( $expected_table_operations = {} ) : $is_passing
+=head2 test( $expected_table_operations = {}, $description? ) : $is_passing
 
-Test the collected queries against $expected_table_operations (see
-above) and either pass or fail a Test::More test.
+Test (using $description) the collected queries against
+$expected_table_operations (see above) and either pass or fail a
+Test::More test.
 
-If the test fails, list all queries relating to the tables with
+If the test fails, C<diag> all queries relating to the tables with
 unexpected activity.
 
-If anything failed to be identified as a known query, always list
+If anything failed to be identified as a known query, always C<note>
 those queries. But don't fail the test just because of it.
 
 Reset the collected stats, so subsequent calls to ->run() start with a
@@ -350,7 +362,7 @@ use Test::DBIC::ExpectedQueries::Query;
 ### Simple procedural interface
 
 sub expected_queries {
-    my ($schema, $subref, $expected) = @_;
+    my ($schema, $subref, $expected, $description) = @_;
     $expected ||= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
@@ -364,7 +376,7 @@ sub expected_queries {
         $return_values = [ scalar $queries->run($subref) ];
     }
 
-    $queries->test($expected);
+    $queries->test($expected, $description);
 
     return @$return_values if wantarray();
     return $return_values->[0];
@@ -435,7 +447,7 @@ sub _stack_trace {
     my $self = shift;
 
     my $trace = Devel::StackTrace->new(
-        message      => "executed",
+        message      => "SQL executed",
         ignore_class => $self->ignore_classes,
     );
 
@@ -496,8 +508,9 @@ sub run {
 
 sub test {
     my $self = shift;
-    my ($expected) = @_;
+    my ($expected, $test_description) = @_;
     $expected ||= {};
+    $test_description ||= "Expected queries for tables";
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $failure_message = $self->check_table_operation_counts($expected);
@@ -506,14 +519,15 @@ sub test {
     $self->clear_queries();
     $self->clear_table_operation_count();
 
-
-    my $test_description = "Expected queries for tables";
     if($failure_message) {
-        fail("$test_description:\n\n$failure_message$unknown_warning");
+        fail($test_description);
+        diag("\n$failure_message");
+        $unknown_warning and note($unknown_warning);
         return 0;
     }
 
-    pass("$test_description$unknown_warning");
+    pass($test_description);
+    $unknown_warning and note($unknown_warning);
     return 1;
 }
 
