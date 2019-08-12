@@ -166,7 +166,7 @@ Many DBIC methods are context sensitive, and in scalar context might
 just return an unrealized resultset rather than execute a query and
 return the resulting rows. If you're unsure, assigning the query to an
 array will make it run in list context and therefore execute the SQL
-query.
+query. Or you can call C<-&gt;>all> on the resultset object.
 
 
 =head2 DBIC_TRACE
@@ -354,6 +354,8 @@ use Try::Tiny;
 use Carp;
 use DBIx::Class;
 use Devel::StackTrace;
+use autobox::Core;
+use autobox::Transform;
 
 use Test::DBIC::ExpectedQueries::Query;
 
@@ -419,25 +421,30 @@ sub _build_ignore_classes {
     my $self = shift;
     return [
         # "main",
-        "Test::DBIC::ExpectedQueries",
         "Class::MOP::Method::Wrapped",
-        "Moose::Meta::Method::Delegation",
         "Context::Preserve",
-        # "DBIx::Class",
-        # "DBIx::Class::Schema",
-        # "DBIx::Class::Storage::BlockRunner",
+        "DBIx::Class",
         "DBIx::Class::ResultSet",
         "DBIx::Class::Row",
+        "DBIx::Class::Row",
+        "DBIx::Class::Schema",
+        "DBIx::Class::Storage::BlockRunner",
         "DBIx::Class::Storage::DBI",
         "DBIx::Class::Storage::Statistics",
-        "DBIx::Class::Row",
+        "Mojo::IOLoop",
+        "Mojo::Promise",
+        "Mojo::Reactor",
+        "Moose::Meta::Method::Delegation",
+        "Test::Builder",
         "Test::Builder",
         "Test::Class",
         "Test::Class::Moose",
-        "Test::Class::Moose::Runner",
+        "Test::Class::Moose::Executor::Sequential",
         "Test::Class::Moose::Report::Method",
         "Test::Class::Moose::Role::Executor",
-        "Test::Class::Moose::Executor::Sequential",
+        "Test::Class::Moose::Runner",
+        "Test::DBIC::ExpectedQueries",
+        "Test::More",
         "Try::Tiny",
         "Try::Tiny::Catch",
     ];
@@ -450,11 +457,17 @@ sub _stack_trace {
         message      => "SQL executed",
         ignore_class => $self->ignore_classes,
     );
-
     my $callers = $trace->as_string;
-    chomp($callers);
-    $callers =~ s/\n/ <-- /gsm;
-    $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
+
+    $callers =~ s/=?(HASH|ARRAY|CODE|GLOB)\(0x\w+\)/<$1>/gsm;
+
+    # Indent all but first line
+    my ($first, @rest) = $callers->split(qr/\n/);
+    my $rest = @rest
+        ->filter
+        ->map(sub { "    $_" })
+        ->join("\n");
+    $callers = "$first\n$rest";
 
     return $callers;
 }
