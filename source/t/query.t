@@ -72,6 +72,20 @@ subtest "Sub selects" => sub {
     );
 };
 
+subtest "Issue 6" => sub {
+    note "Actal query reported";
+    test_parse(
+        q|
+    (SELECT me.id, me.req_id, me.version, me.name FROM (
+      SELECT me.id, me.req_id, me.version, me.name FROM tablename me WHERE ( req_id = ? )  ORDER BY version DESC
+    ) me WHERE ROWNUM <= ?
+|,
+        "select",
+        "tablename",
+        1,
+    );
+};
+
 
 
 
