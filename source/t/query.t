@@ -10,12 +10,14 @@ use Test::DBIC::ExpectedQueries::Query;
 note "*** SQL queries parsed correctly";
 
 sub test_parse {
-    my ($sql, $operation, $table) = @_;
+    my ($sql, $operation, $table, $report_subselect_tables) = @_;
     local $Test::Builder::Level = $Test::Builder::Level + 1;
+    $report_subselect_tables ||= 0;
 
     my $query = Test::DBIC::ExpectedQueries::Query->new({
-        sql         => $sql,
-        stack_trace => "not under test",
+        sql                     => $sql,
+        stack_trace             => "not under test",
+        report_subselect_tables => $report_subselect_tables,
     });
     is($query->operation, $operation, "Correct ->operation for $operation");
     is($query->table, $table, "Correct ->table for $operation");
@@ -48,6 +50,7 @@ subtest "Simple operations" => sub {
 
 subtest "Sub selects" => sub {
     test_parse("SELECT abc, def from (select * from file)", "select", "select");
+
 
 };
 

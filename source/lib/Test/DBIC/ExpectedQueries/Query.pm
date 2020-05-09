@@ -4,8 +4,10 @@ use Moo;
 
 
 
-has sql         => ( is => "ro", required => 1 );
-has stack_trace => ( is => "ro", required => 1 ); # Just a string
+has sql                     => ( is => "ro", required => 1 );
+has stack_trace             => ( is => "ro", required => 1 ); # Just a string
+has report_subselect_tables => (is => "ro", required => 1);
+
 has table       => ( is => "rw" );
 has operation   => ( is => "rw" );
 
