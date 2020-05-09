@@ -46,5 +46,12 @@ subtest "Simple operations" => sub {
 };
 
 
+subtest "Sub selects" => sub {
+    test_parse("SELECT abc, def from (select * from file)", "select", "select");
+
+};
+
+
+
 
 done_testing();
