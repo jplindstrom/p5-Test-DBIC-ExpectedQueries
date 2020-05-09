@@ -51,7 +51,7 @@ subtest "Simple operations" => sub {
 subtest "Sub selects" => sub {
     test_parse("SELECT abc, def from (select * from file)", "select", "select");
 
-
+    test_parse("SELECT abc, def from (select * from file)", "select", "file", 1);
 };
 
 
