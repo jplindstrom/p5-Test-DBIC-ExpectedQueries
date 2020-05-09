@@ -21,6 +21,7 @@ sub analyze_sql {
         [^\w.]*     # optional quote
         ([\w.]+)  # capture table
     /x;
+    my $select_table = qr/^ \s* select\s+ .+? \s? from \s+ $table /ixsm;
 
     if($sql =~ /^ \s* insert\s+ into \s+ $table /ixsm) {
         $self->table($1);
@@ -34,7 +35,7 @@ sub analyze_sql {
         $self->table($1);
         $self->operation("delete");
     }
-    elsif($sql =~ /^ \s* select\s+ .+? \s? from \s+ $table /ixsm) {
+    elsif($sql =~ $select_table) {
         $self->table($1);
         $self->operation("select");
     }
