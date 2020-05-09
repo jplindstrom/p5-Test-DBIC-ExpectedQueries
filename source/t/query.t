@@ -21,22 +21,27 @@ sub test_parse {
     is($query->table, $table, "Correct ->table for $operation");
 }
 
-note "SELECT";
-test_parse("Select * from file", "select", "file");
-test_parse("Select * from metric_value", "select", "metric_value");
-test_parse("Select * from 'file'", "select", "file");
 
-note "INSERT";
-test_parse("insert into file ('id') values (1)", "insert", "file");
-test_parse("insert into `file` ('id') values (1)", "insert", "file");
+subtest "SELECT" => sub {
+    test_parse("Select * from file", "select", "file");
+    test_parse("Select * from metric_value", "select", "metric_value");
+    test_parse("Select * from 'file'", "select", "file");
+};
 
-note "UPDATE";
-test_parse("update file set id = 2 where id = 4", "update", "file");
-test_parse('update "file" set id = 2 where id = 4', "update", "file");
+subtest "INSERT" => sub {
+    test_parse("insert into file ('id') values (1)", "insert", "file");
+    test_parse("insert into `file` ('id') values (1)", "insert", "file");
+};
 
-note "DELETE";
-test_parse("delete from other_db.file where id = 4", "delete", "other_db.file");
-test_parse("delete from 'other_db.file' where id = 4", "delete", "other_db.file");
+subtest "UPDATE" => sub {
+    test_parse("update file set id = 2 where id = 4", "update", "file");
+    test_parse('update "file" set id = 2 where id = 4', "update", "file");
+};
+
+subtest "DELETE" => sub {
+    test_parse("delete from other_db.file where id = 4", "delete", "other_db.file");
+    test_parse("delete from 'other_db.file' where id = 4", "delete", "other_db.file");
+};
 
 
 
