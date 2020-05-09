@@ -19,8 +19,9 @@ sub test_parse {
         stack_trace             => "not under test",
         report_subselect_tables => $report_subselect_tables,
     });
-    is($query->operation, $operation, "Correct ->operation for $operation");
-    is($query->table, $table, "Correct ->table for $operation");
+    my $display_operation = $operation // "<None>";
+    is($query->operation, $operation, "Correct ->operation for $display_operation");
+    is($query->table, $table, "Correct ->table for $display_operation");
 }
 
 
@@ -51,7 +52,24 @@ subtest "Simple operations" => sub {
 subtest "Sub selects" => sub {
     test_parse("SELECT abc, def from (select * from file)", "select", "select");
 
+    note "Sub-select";
     test_parse("SELECT abc, def from (select * from file)", "select", "file", 1);
+
+    note "Nested sub-selects";
+    test_parse(
+        "SELECT abc, def from (select * from (select * from (select * from file)))",
+        "select",
+        "file",
+        1,
+    );
+
+    note "Nested sub-selects, with eventually no identifiable table at the core";
+    test_parse(
+        "SELECT abc, def from (select * from (select * from (select 'Just a value')))",
+        undef,
+        undef,
+        1,
+    );
 };
 
 

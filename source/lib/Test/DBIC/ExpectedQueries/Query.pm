@@ -38,9 +38,11 @@ sub analyze_sql {
     elsif($sql =~ $select_table) {
         my ($table, $rest_sql) = ($1, $2);
 
-        if ($self->report_subselect_tables && (uc($table) eq "SELECT")) {
-            if ("select $rest_sql" =~ $select_table) {
-                my ($table, $rest_sql) = ($1, $2);
+        if ($self->report_subselect_tables) {
+            while ( uc($table) eq "SELECT" && ("select $rest_sql" =~ $select_table) ) {
+                ($table, $rest_sql) = ($1, $2);
+            }
+            if ($table && uc($table) ne "SELECT") {
                 $self->table($table);
                 $self->operation("select");
             }
