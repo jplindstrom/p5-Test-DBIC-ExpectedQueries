@@ -2,6 +2,12 @@
 
 Test::DBIC::ExpectedQueries - Test that only expected DBIx::Class queries are run
 
+=head1 VERSION 2.000
+
+Version 2.000 is out with a breaking change. If you're having issues
+with your test suite, please see the L<Changes> file for details.
+
+
 =head1 DESCRIPTION
 
 Ensure that only the DBIx::Class SQL queries you expect are executed
@@ -46,12 +52,16 @@ single-row queries in the future.
             },
             author => { insert => undef  },
         },
+        "Doing that stuff runs correct SQL", # optional
     );
 
 
 =head2 Flexible
 
-    my $queries = Test::DBI::ExpectedQueries->new({ schema => $schema });
+    my $queries = Test::DBIC::ExpectedQueries->new({
+        schema                  => $schema,
+        report_subselect_tables => 1,
+    });
     $queries->run(sub {
         $schema->resultset("Book")->find(34);
         $schema->resultset("Author")->create( ... );
@@ -64,6 +74,15 @@ single-row queries in the future.
         book   => { select => "<= 2"},
         author => { insert => undef },
     });
+
+    # or, with test description
+    $queries->test(
+        {
+            book   => { select => "<= 2"},
+            author => { insert => undef },
+        },
+        "Doing that stuff runs correct SQL", # optional
+    );
 
 
 
@@ -150,7 +169,7 @@ Many DBIC methods are context sensitive, and in scalar context might
 just return an unrealized resultset rather than execute a query and
 return the resulting rows. If you're unsure, assigning the query to an
 array will make it run in list context and therefore execute the SQL
-query.
+query. Or you can call C<-&gt;>all> on the resultset object.
 
 
 =head2 DBIC_TRACE
@@ -158,18 +177,19 @@ query.
 Normally, setting the ENV variable DBIC_TRACE can be used to "warn"
 the DBIC queries.
 
-Test::DBIC:ExpectedQueries uses the same mechanism as DBIC_TRACE, so
-while the code is run under the test the normal DBIC_TRACE will not
+Test::DBIC:ExpectedQueries uses the same mechanism as DBIC_TRACE does,
+so while the code is run under the test the normal DBIC_TRACE will not
 happen.
 
 
 
 =head1 SUBROUTINES
 
-=head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {} ) : $result | @result
+=head2 expected_queries( $schema, $sub_ref, $expected_table_operations = {}, $description? ) : $result | @result
 
 Run $sub_ref and collect stats for queries executed on $schema, then
-test that they match the $expected_table_operations.
+test (using $description) that they match the
+$expected_table_operations.
 
 Return the return value of $sub_ref->().
 
@@ -215,11 +235,19 @@ use C<stack_trace => 1>.
 
 =head1 METHODS
 
-=head2 new({ schema => $schema }}) : $new_object
+=head2 new({ schema => $schema, report_subselect_tables => 0 }}) : $new_object
 
 Create new test object.
 
 $schema is a DBIx::Class::Schema object.
+
+If C<report_subselect_tables> is false (default), any SQL query like
+
+    select * from (select abc from def);
+
+will report a select on the table C<select>. However, if you specify
+C<report_subselect_tables>, it will try to find the C<def> table
+inside the subselect.
 
 
 =head2 run( $sub_ref ) : $result | @result
@@ -232,15 +260,16 @@ You can call $queries->run() multiple times to add to the collected
 stats before finally calling $queries->test().
 
 
-=head2 test( $expected_table_operations = {} ) : $is_passing
+=head2 test( $expected_table_operations = {}, $description? ) : $is_passing
 
-Test the collected queries against $expected_table_operations (see
-above) and either pass or fail a Test::More test.
+Test (using $description) the collected queries against
+$expected_table_operations (see above) and either pass or fail a
+Test::More test.
 
-If the test fails, list all queries relating to the tables with
+If the test fails, C<diag> all queries relating to the tables with
 unexpected activity.
 
-If anything failed to be identified as a known query, always list
+If anything failed to be identified as a known query, always C<note>
 those queries. But don't fail the test just because of it.
 
 Reset the collected stats, so subsequent calls to ->run() start with a
@@ -336,6 +365,8 @@ use Try::Tiny;
 use Carp;
 use DBIx::Class;
 use Devel::StackTrace;
+use autobox::Core;
+use autobox::Transform;
 
 use Test::DBIC::ExpectedQueries::Query;
 
@@ -344,7 +375,7 @@ use Test::DBIC::ExpectedQueries::Query;
 ### Simple procedural interface
 
 sub expected_queries {
-    my ($schema, $subref, $expected) = @_;
+    my ($schema, $subref, $expected, $description) = @_;
     $expected ||= {};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
@@ -358,7 +389,7 @@ sub expected_queries {
         $return_values = [ scalar $queries->run($subref) ];
     }
 
-    $queries->test($expected);
+    $queries->test($expected, $description);
 
     return @$return_values if wantarray();
     return $return_values->[0];
@@ -371,6 +402,12 @@ sub expected_queries {
 has schema => (
     is       => "ro",
     required => 1,
+);
+
+has report_subselect_tables => (
+    is      => "ro",
+    default => sub { 0 },
+    lazy    => 1,
 );
 
 has queries => (
@@ -401,25 +438,30 @@ sub _build_ignore_classes {
     my $self = shift;
     return [
         # "main",
-        "Test::DBIC::ExpectedQueries",
         "Class::MOP::Method::Wrapped",
-        "Moose::Meta::Method::Delegation",
         "Context::Preserve",
-        # "DBIx::Class",
-        # "DBIx::Class::Schema",
-        # "DBIx::Class::Storage::BlockRunner",
+        "DBIx::Class",
         "DBIx::Class::ResultSet",
         "DBIx::Class::Row",
+        "DBIx::Class::Row",
+        "DBIx::Class::Schema",
+        "DBIx::Class::Storage::BlockRunner",
         "DBIx::Class::Storage::DBI",
         "DBIx::Class::Storage::Statistics",
-        "DBIx::Class::Row",
+        "Mojo::IOLoop",
+        "Mojo::Promise",
+        "Mojo::Reactor",
+        "Moose::Meta::Method::Delegation",
+        "Test::Builder",
         "Test::Builder",
         "Test::Class",
         "Test::Class::Moose",
-        "Test::Class::Moose::Runner",
+        "Test::Class::Moose::Executor::Sequential",
         "Test::Class::Moose::Report::Method",
         "Test::Class::Moose::Role::Executor",
-        "Test::Class::Moose::Executor::Sequential",
+        "Test::Class::Moose::Runner",
+        "Test::DBIC::ExpectedQueries",
+        "Test::More",
         "Try::Tiny",
         "Try::Tiny::Catch",
     ];
@@ -429,14 +471,20 @@ sub _stack_trace {
     my $self = shift;
 
     my $trace = Devel::StackTrace->new(
-        message      => "executed",
+        message      => "SQL executed",
         ignore_class => $self->ignore_classes,
     );
-
     my $callers = $trace->as_string;
-    chomp($callers);
-    $callers =~ s/\n/ <-- /gsm;
-    $callers =~ s/=?(HASH|ARRAY)\(0x\w+\)/<$1>/gsm;
+
+    $callers =~ s/=?(HASH|ARRAY|CODE|GLOB)\(0x\w+\)/<$1>/gsm;
+
+    # Indent all but first line
+    my ($first, @rest) = $callers->split(qr/\n/);
+    my $rest = @rest
+        ->filter
+        ->map(sub { "    $_" })
+        ->join("\n");
+    $callers = "$first\n$rest";
 
     return $callers;
 }
@@ -461,8 +509,9 @@ sub run {
         push(
             @queries,
             Test::DBIC::ExpectedQueries::Query->new({
-                sql         => $sql,
-                stack_trace => $self->_stack_trace(),
+                sql                     => $sql,
+                stack_trace             => $self->_stack_trace(),
+                report_subselect_tables => $self->report_subselect_tables,
             }),
         );
     } );
@@ -490,8 +539,9 @@ sub run {
 
 sub test {
     my $self = shift;
-    my ($expected) = @_;
+    my ($expected, $test_description) = @_;
     $expected ||= {};
+    $test_description ||= "Expected queries for tables";
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
     my $failure_message = $self->check_table_operation_counts($expected);
@@ -500,14 +550,15 @@ sub test {
     $self->clear_queries();
     $self->clear_table_operation_count();
 
-
-    my $test_description = "Expected queries for tables";
     if($failure_message) {
-        fail("$test_description:\n\n$failure_message$unknown_warning");
+        fail($test_description);
+        diag("\n$failure_message");
+        $unknown_warning and note($unknown_warning);
         return 0;
     }
 
-    pass("$test_description$unknown_warning");
+    pass($test_description);
+    $unknown_warning and note($unknown_warning);
     return 1;
 }
 
@@ -517,6 +568,7 @@ sub check_table_operation_counts {
 
     my $table_operation_count = $self->table_operation_count();
 
+    # Check actual events against test spec
     my $expected_all_operation = $expected_table_count->{_all_} || {};
     my $table_test_result = {};
     for my $table (sort keys %{$table_operation_count}) {
@@ -545,8 +597,34 @@ sub check_table_operation_counts {
         }
     }
 
-    ###JPL: also look at remaining in $expected, to make sure those
-    ###queries are run
+    # Check test spec against actual events to catch
+    ###JPL: extend this to validate test operations
+    my $operation_to_test = {
+        select => 1,
+        insert => 1,
+        update => 1,
+        delete => 1,
+    };
+    for my $table (sort keys %$expected_table_count) {
+        my $expected_operation_count = $expected_table_count->{$table};
+        for my $operation (sort keys %$expected_operation_count) {
+            next if ! $operation_to_test->{$operation};
+            # Already tested?
+            next if exists $table_operation_count->{$table}->{$operation};
+
+            my $expected_outcome = $expected_operation_count->{$operation};
+            defined $expected_outcome or next; # undef = ignore
+
+            my $actual_count = $table_operation_count->{$table}->{$operation} || 0;
+            my $test_result = $self->test_count(
+                $table,
+                $operation,
+                $expected_outcome,
+                $actual_count,
+            );
+            $test_result and push(@{ $table_test_result->{$table} }, $test_result);
+        }
+    }
 
     if(scalar keys %$table_test_result) {
         my $message = "";
